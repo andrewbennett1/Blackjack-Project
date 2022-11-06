@@ -109,9 +109,11 @@ class User(Player):
 
 
 class Card(pygame.sprite.Sprite):
-  def __init__(self, value, suit):
-
+  def __init__(self, value, suit, pos):
     super().__init__()
+    self.x, self.y = pos
+    self.hidden = False
+
     
     """ Allocate a value """
     if value == 1:
@@ -132,10 +134,20 @@ class Card(pygame.sprite.Sprite):
       self.value = 10
 
     self.suit = suit
-    self.img = pygame.transform.scale(pygame.image.load('images/card_temp.png').convert_alpha(), (200, 200))
+    if suit == '♣':
+      tmp = 'clubs'
+    elif suit == '♠':
+      tmp = 'spades'
+    elif suit == '♦':
+      tmp = 'diamonds'
+    elif suit == '♥':
+      tmp = 'hearts'
+    if self.display_value not in ('10', 'A', 'J', 'K', 'Q'):
+      tmp2 = '0' + str(self.display_value)
+    else: tmp2 = self.display_value
 
-    self.x = 100
-    self.y = 100
+    self.img = pygame.transform.scale(pygame.image.load(f'images/card_{tmp}_{tmp2}.png').convert_alpha(), (200, 200))
+    self.back = pygame.transform.scale(pygame.image.load(f'images/back.png').convert_alpha(), (200, 200))
 
     self.tmp_text = pygame.font.Font(f"Bold.ttf", 20).render(self.display_value, True, (255,255,255), (0,0,0))
 
@@ -148,6 +160,7 @@ class Card(pygame.sprite.Sprite):
 
   def draw(self, screen):
     w, h = self.img.get_size()
-    screen.blit(self.img, (self.x, self.y))
-    screen.blit(self.value_icon, (w-10, h+10))
-    screen.blit(self.suit_icon, (self.x+10, self.y+40))
+    if self.hidden: screen.blit(self.back, (self.x, self.y))
+    else: screen.blit(self.img, (self.x, self.y))
+    # screen.blit(self.value_icon, (w-10, h+10))
+    # screen.blit(self.suit_icon, (self.x+10, self.y+40))

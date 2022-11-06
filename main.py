@@ -92,7 +92,7 @@ class Game:
     for i in self.deck:
       i.draw(screen)
       # i.font.render(i.display_value, True, (255,255,255), (0,0,0))
-      screen.blit(i.tmp_text,(i.x,i.y))
+      # screen.blit(i.tmp_text,(i.x,i.y))
     
     if self.active_player == self.player_character: # Display player buttons
       pass
@@ -104,7 +104,7 @@ class Game:
     for i in range(deck_num):
       for suit in ('♠', '♣', '♦', '♥'):
         for number in range(13):
-          deck.append(Card(number+1, suit))
+          deck.append(Card(number+1, suit, (random.randrange(0,1200), random.randrange(0,700))))
     random.shuffle(deck)
     return deck
   
