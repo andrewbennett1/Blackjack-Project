@@ -2,31 +2,26 @@ import pygame
 import random
 from os import system, name
 import time
-from classes import Dealer, User, Bot, Card
+from classes import Dealer, User, Bot, Card, Button
 import sys
-
-
-"""
-TODO
-
-get sprites
-position cards and chips
-make chip system
-finish player and dealer ai
+from threading import Thread
+import socket
+from server import ServerHost
+from client import Client
+from scene_manager import GameScene, StartScene
 
 
 
-"""
 
 
 pygame.init()
 screen = pygame.display.set_mode((900, 600), pygame.RESIZABLE)
 pygame.display.set_caption('Blackjack')
-# pygame.display.set_icon('Blackjack')
+pygame.display.set_icon(pygame.transform.scale(pygame.image.load(f'images/back.png').convert_alpha(), (200, 200)))
 clock = pygame.time.Clock()
 
 
-DECK_POS = (600, 400)
+
 
 
 
@@ -34,37 +29,30 @@ DECK_POS = (600, 400)
 def clear(): 
     _ = system('clear')
 
-
+def test_func():
+  print('lol')
   
-  
 
-class Game:
-  def __init__(self, ai_players_num, starting_chip_num, deck_num, deck_shuffle_frequency):
+# button = Button((100,100), (100,200), 'test.png', 'test2.png', test_func)
 
-    self.player_character = User(starting_chip_num, 'You')
-    self.dealer = Dealer('Dealer')
-    self.players = [self.dealer, self.player_character]
-    self.active_player = self.players[1] # don't start at dealer
-    self.game_status = None
-
-    iteration = 0
-    for i in range(ai_players_num):
-      iteration += 1
-      self.players.append(Bot(starting_chip_num, f'Bot-{iteration}'))
+class GameManager:
+  def __init__(self):
+    self.start_scene = StartScene(self)
+    self.game_scene = None
 
     
-
-    # self.starting_chip_num = starting_chip_num
-
-    self.deck = self.create_deck(deck_num)
-    # self.discarded = []
+    self.current_scene = self.start_scene
+    self.previous_screen_size = screen.get_size()
 
 
-
-    # self.deck_shuffle_frequency = deck_shuffle_frequency
-  
   
   def process_game_iteration(self):
+    cursor_pos = pygame.mouse.get_pos()
+
+
+
+
+
     for event in pygame.event.get():
       if event.type == pygame.QUIT:
         pygame.quit()
@@ -73,68 +61,96 @@ class Game:
       if event.type == pygame.KEYDOWN:
         if event.unicode == '|':
           pass
-    
 
-
-    # if self.game_status == 'player_turn':
-    #   self.display_player_options()
-
-    if self.player_character.active: # player is making their turn
-      pass
-
-    else: # Bots do their own thing
-      pass
-
-
-    self.draw_screen()
-    
-  def draw_screen(self):
-    for i in self.deck:
-      i.draw(screen)
-      # i.font.render(i.display_value, True, (255,255,255), (0,0,0))
-      # screen.blit(i.tmp_text,(i.x,i.y))
-    
-    if self.active_player == self.player_character: # Display player buttons
-      pass
-
-
-
-  def create_deck(self, deck_num):
-    deck = []
-    for i in range(deck_num):
-      for suit in ('♠', '♣', '♦', '♥'):
-        for number in range(13):
-          deck.append(Card(number+1, suit, (random.randrange(0,1200), random.randrange(0,700))))
-    random.shuffle(deck)
-    return deck
-  
-  def draw_card(self):
-    # player.hand.append(self.deck.pop())
-    return self.deck.pop()
-    # self.display_game()
-    
-    # if delay: time.sleep(0.5)
-    
-  
-  def move_cards_to_deck(self):
-    for player in self.players:
-      # for card in player.hand:
-        # self.deck.append(player.hand.pop())
-      self.deck + player.active_hand
-      player.hand = []
-
-
-  def reset_game(self):
-    self.move_cards_to_deck()
-    for player in self.players:
-      player.eliminated = False
-
-
-  def collect_bets(self):
-    for player in self.players:
-      player.place_bet()
+      if event.type == pygame.MOUSEBUTTONDOWN:
+        if pygame.mouse.get_pressed()[0]:
+          self.current_scene.handle_left_click(cursor_pos)
       
+      if event.type == pygame.VIDEORESIZE:
+        width, height = event.size
+        if width < 600:
+            width = 600
+        if height < 400:
+            height = 400
+        screen = pygame.display.set_mode((width,height), pygame.RESIZABLE)
 
+        self.current_scene.resizeScreenElements(screen)
+
+
+
+
+    self.draw_screen(cursor_pos)
+    
+
+
+
+  def draw_screen(self, cursor_pos):
+    self.current_scene.draw(cursor_pos, screen)
+
+
+
+  def startHost(self):
+    self.isHost = True
+    # Creates the server on a thread. This code will be moved later and user can choose to host.
+    self.server = ServerHost(self)
+    self.serverHostThread = Thread(target=self.server.start, args=())
+    self.serverHostThread.start()
+
+
+
+
+    # this will be moved later
+    self.active_scene.temp() # creates the send packet button.
+    self.scene_manager.change_to_game_scene()
+    # self.active_scene = self.scene_manager.active_scene
+
+  def endHost(self):
+
+
+
+    self.server.end()
+    self.isHost = False
+  
+  def startClient(self):
+    try: # try to connect to the host
+      client = Client(self)
+      client_loader = client.client_loader
+    except ConnectionRefusedError:
+      print('Unable to connect to host')
+      return
+    except socket.gaierror:
+        print('Invalid IP')
+        return
+
+    self.client_loader = client_loader
+    self.client = client
+
+    self.client.send('connected : )')
+
+    self.isClient = True
+
+    # this will be moved later
+    self.scene_manager.change_to_game_scene()
+    # self.active_scene = self.scene_manager.active_scene
+    
+
+  def endClient(self):
+    self.client.send('!DISCONNECT')
+    self.isClient = False
+
+
+  def start_game_singleplayer(self):
+    print('starting')
+    self.game_scene = GameScene(self, False)
+    self.current_scene = self.game_scene
+    self.current_scene.resizeScreenElements(screen)
+    
+
+  def start_game_multiplayer(self):
+    print('starting')
+    self.game_scene = GameScene(self, True)
+    self.current_scene = self.game_scene
+    self.current_scene.resizeScreenElements(screen)
 
   def begin_game(self):
     
@@ -205,9 +221,11 @@ class Game:
 
 if __name__ == "__main__":
   # run_game()
-  game = Game(1, 300, 1, 1)
+  game = GameManager()
+  game.current_scene.resizeScreenElements(screen)
   while True:
-    screen.fill((80,85,80))
+    # screen.fill((80,85,80))
+    # game.current_scene.resizeScreenElements(screen)
     game.process_game_iteration()
 
     # game.begin_game()
