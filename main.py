@@ -2,7 +2,7 @@ import pygame
 import random
 from os import system, name
 import time
-from classes import Dealer, User, Bot, Card, Button
+from classes import Dealer, User, Bot, Card, Button, TextLabel
 import sys
 from threading import Thread
 import socket
@@ -23,17 +23,15 @@ clock = pygame.time.Clock()
 
 
 
-
+felt = pygame.transform.scale(pygame.image.load(f'images/felt.png').convert_alpha(), (screen.get_size()))
 
 
 def clear(): 
     _ = system('clear')
-
-def test_func():
-  print('lol')
   
 
 # button = Button((100,100), (100,200), 'test.png', 'test2.png', test_func)
+
 
 class GameManager:
   def __init__(self):
@@ -63,21 +61,26 @@ class GameManager:
           pass
 
       if event.type == pygame.MOUSEBUTTONDOWN:
+
         if pygame.mouse.get_pressed()[0]:
           self.current_scene.handle_left_click(cursor_pos)
       
+
+      
       if event.type == pygame.VIDEORESIZE:
+        global felt
         width, height = event.size
         if width < 600:
             width = 600
         if height < 400:
             height = 400
         screen = pygame.display.set_mode((width,height), pygame.RESIZABLE)
+        felt = pygame.transform.scale(pygame.image.load(f'images/felt.png').convert_alpha(), (width, height))
 
         self.current_scene.resizeScreenElements(screen)
 
 
-
+    self.current_scene.run_actions()
 
     self.draw_screen(cursor_pos)
     
@@ -85,7 +88,8 @@ class GameManager:
 
 
   def draw_screen(self, cursor_pos):
-    self.current_scene.draw(cursor_pos, screen)
+    self.current_scene.draw(cursor_pos, screen, felt)
+
 
 
 
@@ -174,15 +178,18 @@ class GameManager:
         self.draw_card(player)
 
 
-      """ Each player gets a turn """
-      for player in self.players: # each player should play
-        player.active = True
+      # """ Each player gets a turn """
+      # for player in self.players: # each player should play
+      #   player.active = True
 
-        #Players handle all of their actions by themselves, including drawing cards
-        player.make_action(self.players)
+      #   #Players handle all of their actions by themselves, including drawing cards
+      #   print('NEXT:', player)
+      #   exit()
+      #   player.make_action(self.players)
 
 
       """ Calculate winners"""
+      print("DONE")
       dealer_num = self.dealer.calculate_hand()
       for player in self.players:
         outcome = player.calculate_result(dealer_num) # Gets outcome of round from player
