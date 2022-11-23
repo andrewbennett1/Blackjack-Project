@@ -1,4 +1,6 @@
 import pygame
+import rules
+import random
 
 class Hand:
   def __init__(self):
@@ -7,16 +9,12 @@ class Hand:
 
 class Player:
   def __init__(self, chips, name, sequence):
-    # sequence is [position_order]
-
     self.hands = [Hand()]
     self.active_hand = self.hands[0] # splitting requires multiple hands.
     # ^^ Could also be an interesting game modifier for a custom game.
     self.name = name
 
     self.player_name = TextLabel((10, 10), (30, 10), name)
-
-    # self.player_id = player_id
   
     self.chips = chips # will be set to the default 
     self.bet = None # Int of the bet a player has placed.
@@ -51,11 +49,6 @@ class Player:
       self.card_move_direction = (0,10)
       self.card_rotation = 270
       self.player_name = TextLabel((1, 15), (10, 5), self.name)
-    
-
-    
-
-
 
   def position_hand_cards(self):
     # pos_x = 0.1
@@ -67,9 +60,6 @@ class Player:
       pos_x += self.card_move_direction[0]
       pos_y += self.card_move_direction[1]
     
-
-
-  
   def calculate_result(self, dealer_num, dealer):
     player_num = self.calculate_hand()
     
@@ -94,7 +84,6 @@ class Player:
     self.player_name.draw(screen)
 
 
-
   def calculate_hand(self):
     # Calculate the value of the active hand
     # Accounts for aces and lowers accordingly.
@@ -110,24 +99,22 @@ class Player:
     return total
   
 
-
 class Bot(Player):
   def __init__(self, chips, name, player_id):
     super().__init__(chips, name, player_id)
+    self.stand_value = random.randrange(rules.ai_stand_range[0], rules.ai_stand_range[1])
 
   def make_action(self, game):
     self.active = True
-    # while self.active:
-
     value = self.calculate_hand()
 
-    if value < 17: # hit
+    if value < self.stand_value: # hit
       game.pickup_card(self)
     elif value > 21: # bust
       self.eliminated = True
       self.active = False
       game.stand()
-    elif value >= 17: # stand
+    elif value >= self.stand_value: # stand
       self.active = False
       game.stand()
 
@@ -137,33 +124,33 @@ class Bot(Player):
     self.chips -= self.bet
 
 
+class ClientPlayer(Player):
+  def __init__(self, chips, name, player_id, client_info):
+    super().__init__(chips, name, player_id)
+    self.client_info = client_info
+  
+  def make_action(self, game):
+    pass
+
 
 class Dealer(Player):
   def __init__(self, name, player_id):
     super().__init__('inf', name, player_id) # dealer has infinite chips
+    self.stand_value = rules.dealer_stand_value
 
   def make_action(self, game):
-    # print('dealers turn')
-    # add cards until the dealer has a high value.
-    # print(self.active_hand.cards, self.active_hand.cards[1].hidden)
-    if self.active_hand.cards[1].hidden == True:
-      # print('woo')
-      self.active_hand.cards[1].hidden = False
-    else:
-      # print('no')
+    self.active = True
 
-      self.active = True
-
-      value = self.calculate_hand()
-      if value < 17: # hit
-        game.pickup_card(self)
-      elif value > 21: # bust
-        self.eliminated = True
-        self.active = False
-        game.stand()
-      elif value >= 17: # stand
-        self.active = False
-        game.stand()
+    value = self.calculate_hand()
+    if value < self.stand_value: # hit
+      game.pickup_card(self)
+    elif value > 21: # bust
+      self.eliminated = True
+      self.active = False
+      game.stand()
+    elif value >= self.stand_value: # stand
+      self.active = False
+      game.stand()
 
 
 class User(Player):
@@ -176,12 +163,9 @@ class User(Player):
 
   def place_bet(self):
     pass
-    # User creates their own bet
-    # In progress
-
 
 class Card(pygame.sprite.Sprite):
-  def __init__(self, value, suit, pos):
+  def __init__(self, value, suit, pos=(0,0)):
     super().__init__()
     self.pos_percent = pos
     self.x, self.y = pos
@@ -223,11 +207,8 @@ class Card(pygame.sprite.Sprite):
 
     self.img_src = pygame.image.load(f'images/card_{tmp}_{tmp2}.png').convert_alpha()
     self.back_src = pygame.image.load(f'images/back.png').convert_alpha()
-
-
     self.rotation = 0
 
-    
 
   def resize(self, screen):
     CARD_SIZE = (10, 30)
@@ -240,25 +221,18 @@ class Card(pygame.sprite.Sprite):
     new_w, new_h = int(20 / 100 * screen_size[0]), int(30 / 100 * screen_size[1])
 
     self.x, self.y = new_x, new_y
-    # if self.rotation in (0, 180):
+
     self.img_display = pygame.transform.rotate(pygame.transform.scale(self.img_src, (new_w, new_h)), self.rotation)
     self.back_display = pygame.transform.rotate(pygame.transform.scale(self.back_src, (new_w, new_h)), self.rotation)
-    # else:
-      # self.img_display = pygame.transform.rotate(pygame.transform.scale(self.img_src, (new_h, new_w)), self.rotation)
-      # self.back_display = pygame.transform.rotate(pygame.transform.scale(self.back_src, (new_h, new_w)), self.rotation)
-
 
 
   def draw(self, screen):
     if self.visible == False: return
-    # w, h = self.img.get_size()
+
     if self.hidden: 
-      # print('hide', self.value)
+
       screen.blit(self.back_display, (self.x, self.y))
     else: screen.blit(self.img_display, (self.x, self.y))
-    # screen.blit(self.value_icon, (w-10, h+10))
-    # screen.blit(self.suit_icon, (self.x+10, self.y+40))
-
 
 class TextLabel:
   def __init__(self, pos, size, text, screen=None):
@@ -281,7 +255,6 @@ class TextLabel:
 
     self.x, self.y = new_x, new_y
     self.text = pygame.transform.scale(self.text, (new_w, new_h))
-    # self.hover_img_display = pygame.transform.scale(self.hover_img_src, (new_w, new_h))
 
 
   def change_text(self, text, screen):
@@ -291,8 +264,6 @@ class TextLabel:
   def draw(self, screen):
     self.resize(screen)
     screen.blit(self.text, (self.x, self.y))
-
-
 
 
 class Button:
@@ -345,11 +316,3 @@ class Button:
       screen.blit(self.hover_img_display, (self.collision_rect.x, self.collision_rect.y))
     else:
       screen.blit(self.img_display, (self.collision_rect.x, self.collision_rect.y))
-
-
-
-
-class Slider:
-  def __init__(self) -> None:
-    pass
-    # use pygame.mouse.get_pressed() to know then mouse button is down
